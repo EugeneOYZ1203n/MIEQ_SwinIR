@@ -4,7 +4,7 @@ import PIL
 from PIL import Image
 
 from image_preprocessing import *
-from ColumnNormalization import columnwise_normalization
+from ColumnNormalization import columnwise_normalization, remove_column_noise_gamma
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -17,8 +17,7 @@ def get_args():
 
 def image_preprocessing(img):
     #img = denoise_fastN1MeansDenoising(9, 21)(img)
-    img = columnwise_normalization(img, 7)
-    img = columnwise_normalization(img, 7)
+    img = remove_column_noise_gamma(img, steps=100)
     #img = contrast_clahe(clipLimit=1.5, tileGridSize=12)(img)
     #img = edge_unsharpMask(threshold=3)(img)
     #img = misc_normalise_img()(img)
