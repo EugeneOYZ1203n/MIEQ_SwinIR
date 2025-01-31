@@ -23,33 +23,40 @@ def gamma_correction(image_array, gamma):
     corrected = np.power(normalized, gamma) * max_val  # Apply gamma and rescale
     return np.clip(corrected, 0, 255).astype(np.uint8)
 
-def optimize_gamma_for_column(image_array, col_idx, gamma_range=(0.5, 2.0), steps=20):
+def optimize_gamma_for_column(image_array, col_idx, num_neighbors = 3, gamma_range=(0.5, 2.0), steps=20):
     """Finds the best gamma value for a column to minimize adjacent pixel differences."""
     best_gamma = 1.0
     min_diff = np.inf
     column = image_array[:, col_idx].copy()  # Copy to avoid modifying original
     
+    left_idx = max(0, col_idx - num_neighbors)
+    right_idx = min(image_array.shape[1] - 1, col_idx + num_neighbors)
+
+    # Compute the reference neighboring column as the mean of selected neighbors
+    if left_idx == right_idx:
+        neighbor_col = image_array[:, left_idx]  # Edge case: only one column available
+    else:
+        neighbor_col = np.mean(image_array[:, left_idx:right_idx + 1], axis=1)
+
     for gamma in np.linspace(*gamma_range, steps):
         corrected_col = gamma_correction(column, gamma)
-        temp_image = image_array.copy()
-        temp_image[:, col_idx] = corrected_col  # Replace column in a temporary image
-        
-        # Compute horizontal adjacent pixel differences
-        diff = np.abs(np.diff(temp_image, axis=1)).sum()
-        
+
+        # Compute absolute differences with horizontally adjacent pixels
+        diff = np.abs(corrected_col - neighbor_col).sum()
+
         if diff < min_diff:
             min_diff = diff
             best_gamma = gamma
     
     return gamma_correction(column, best_gamma)
 
-def remove_column_noise_gamma(img, gamma_range=(0.5, 2.0), steps=20):
+def remove_column_noise_gamma(img, num_neighbors =3,  gamma_range=(0.5, 2.0), steps=20):
     # Load image and convert to grayscale
     img_array = np.array(img, dtype=np.float32)
     
     # Process each column independently
     for col_idx in range(img_array.shape[1]):
-        img_array[:, col_idx] = optimize_gamma_for_column(img_array, col_idx, gamma_range, steps)
+        img_array[:, col_idx] = optimize_gamma_for_column(img_array, col_idx, num_neighbors, gamma_range, steps)
     
     # Convert back to image and save
     denoised_image = Image.fromarray(img_array.astype(np.uint8))
